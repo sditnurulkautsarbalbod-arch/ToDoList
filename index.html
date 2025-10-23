@@ -123,6 +123,29 @@
   <div id="root"></div>
 
   <script type="text/babel">
+    // --- CACHE UTILS ---
+    const CACHE_KEY = 'todo-app-tasks-v1';
+
+    const getTasksFromCache = () => {
+      try {
+        const cachedData = localStorage.getItem(CACHE_KEY);
+        return cachedData ? JSON.parse(cachedData) : null;
+      } catch (error) {
+        console.error("Error reading tasks from cache:", error);
+        return null;
+      }
+    };
+
+    const saveTasksToCache = (tasks) => {
+      try {
+        if (Array.isArray(tasks)) {
+          localStorage.setItem(CACHE_KEY, JSON.stringify(tasks));
+        }
+      } catch (error) {
+        console.error("Error saving tasks to cache:", error);
+      }
+    };
+
     // --- SERVICES ---
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAyGHSJWcRaYb0ZmGD9ub-wv2KKeoPcyr4RnOKdiQjjSbr-xYJPnyC1OvfD8a8ybN5_Q/exec';
 
@@ -449,29 +472,48 @@
 
     // --- MAIN APP ---
     const App = () => {
-      const { useState, useEffect, useCallback } = React;
+      const { useState, useEffect } = React;
       const [tasks, setTasks] = useState([]);
       const [isLoading, setIsLoading] = useState(true);
       const [error, setError] = useState(null);
       const [view, setView] = useState('list');
 
-      const fetchTasks = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-          const fetchedTasks = await getTasks();
-          setTasks(Array.isArray(fetchedTasks) ? fetchedTasks : []);
-        } catch (err) {
-          setError('Gagal memuat tugas. Periksa koneksi internet Anda.');
-          console.error(err);
-        } finally {
-          setIsLoading(false);
-        }
+      useEffect(() => {
+        const initialLoad = async () => {
+          setIsLoading(true);
+          setError(null);
+          
+          const cachedTasks = getTasksFromCache();
+          if (cachedTasks) {
+            setTasks(cachedTasks);
+          }
+          
+          try {
+            const fetchedTasks = await getTasks();
+            const validTasks = Array.isArray(fetchedTasks) ? fetchedTasks : [];
+            setTasks(validTasks);
+            saveTasksToCache(validTasks);
+          } catch (err) {
+            setError('Gagal memuat tugas. Menampilkan data offline jika tersedia.');
+            console.error(err);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        
+        initialLoad();
       }, []);
 
-      useEffect(() => {
-        fetchTasks();
-      }, [fetchTasks]);
+      const refreshTasks = async () => {
+        try {
+          const fetchedTasks = await getTasks();
+          const validTasks = Array.isArray(fetchedTasks) ? fetchedTasks : [];
+          setTasks(validTasks);
+          saveTasksToCache(validTasks);
+        } catch (err) {
+          setError('Gagal menyegarkan daftar tugas.');
+        }
+      };
 
       const handleAddTask = async (newTaskData) => {
         try {
@@ -483,7 +525,7 @@
           };
           await createTask(completeTask);
           setView('list');
-          await fetchTasks();
+          await refreshTasks();
         } catch (err) {
           setError('Gagal menambahkan tugas. Silakan coba lagi.');
           throw err; // Re-throw to inform the form component of the failure
@@ -492,30 +534,33 @@
 
       const handleToggleTask = async (id, completed) => {
         const originalTasks = [...tasks];
-        const taskToUpdate = tasks.find(t => t.id === id);
-        if (!taskToUpdate) return;
+        const updatedTasks = tasks.map(t => (t.id === id ? { ...t, completed } : t));
 
-        const updatedTask = { ...taskToUpdate, completed };
-        setTasks(tasks.map(t => (t.id === id ? updatedTask : t)));
+        setTasks(updatedTasks);
+        saveTasksToCache(updatedTasks);
 
         try {
           await updateTaskCompletion(id, completed);
         } catch (err) {
           setError('Gagal memperbarui tugas.');
           setTasks(originalTasks);
+          saveTasksToCache(originalTasks);
         }
       };
 
       const handleDeleteTask = async (id) => {
         const originalTasks = [...tasks];
-        setTasks(tasks.filter(t => t.id !== id));
+        const updatedTasks = tasks.filter(t => t.id !== id);
+        
+        setTasks(updatedTasks);
+        saveTasksToCache(updatedTasks);
 
         try {
           await deleteTask(id);
-        } catch (err)
-          {
+        } catch (err) {
           setError('Gagal menghapus tugas.');
           setTasks(originalTasks);
+          saveTasksToCache(originalTasks);
         }
       };
 
