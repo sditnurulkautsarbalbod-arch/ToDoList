@@ -179,6 +179,11 @@
    </div>
   </main>
   <script>
+        // --- KONFIGURASI GOOGLE SHEETS ---
+        // 1. Ikuti petunjuk di file petunjuk_setup.md
+        // 2. Tempelkan URL Web App Anda di bawah ini.
+        const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxAyGHSJWcRaYb0ZmGD9ub-wv2KKeoPcyr4RnOKdiQjjSbr-xYJPnyC1OvfD8a8ybN5_Q/exec";
+  
         // Configuration
         const defaultConfig = {
             app_title: "📚 Daftar Tugas",
@@ -194,24 +199,9 @@
 
         let tasks = [];
         let isLoading = false;
-        const CACHE_KEY = 'todoAppTasks'; // Kunci untuk localStorage
+        const CACHE_KEY = 'todoAppTasks_GSheet'; // Kunci cache baru
 
-        // Data SDK Handler
-        const dataHandler = {
-            onDataChanged(data) {
-                tasks = data || [];
-                renderTasks();
-                updateTaskCounter();
-                 // Simpan data terbaru ke cache
-                try {
-                    localStorage.setItem(CACHE_KEY, JSON.stringify(tasks));
-                } catch (e) {
-                    console.warn("Gagal menyimpan cache ke localStorage:", e);
-                }
-            }
-        };
-
-        // --- Fungsi Cache Baru ---
+        // --- Fungsi Cache ---
         function loadCachedTasks() {
              try {
                 const cachedTasks = localStorage.getItem(CACHE_KEY);
@@ -222,22 +212,19 @@
                 }
             } catch (e) {
                 console.warn("Gagal memuat cache dari localStorage:", e);
-                tasks = []; // Mulai dengan daftar kosong jika cache rusak
+                tasks = [];
             }
         }
 
-        // Initialize SDK
+        // --- Inisialisasi Aplikasi ---
         async function initializeApp() {
-            // Muat dari cache dulu untuk loading cepat
             loadCachedTasks();
             
-            if (window.dataSdk) {
-                 // Kemudian inisialisasi SDK untuk data terbaru
-                const result = await window.dataSdk.init(dataHandler);
-                if (!result.isOk) {
-                    console.error("Failed to initialize data SDK");
-                }
-            }
+            // Hapus inisialisasi dataSdk
+            // if (window.dataSdk) { ... }
+            
+            // Ganti dengan fetch data dari Google Sheet
+            loadTasksFromSheet();
 
             if (window.elementSdk) {
                 await window.elementSdk.init({
@@ -248,9 +235,35 @@
                 });
             }
         }
+        
+        // --- Fungsi Baru: Ambil Data dari Google Sheet ---
+        async function loadTasksFromSheet() {
+            if (GOOGLE_APP_SCRIPT_URL.includes("MASUKKAN_URL_WEB_APP_ANDA_DI_SINI")) {
+                console.warn("URL Google Apps Script belum diatur.");
+                return;
+            }
+            try {
+                const response = await fetch(GOOGLE_APP_SCRIPT_URL);
+                const result = await response.json();
+                
+                if (result.status === "success") {
+                    tasks = result.data;
+                    renderTasks();
+                    updateTaskCounter();
+                    localStorage.setItem(CACHE_KEY, JSON.stringify(tasks));
+                } else {
+                    console.error("Gagal memuat data dari Google Sheet:", result.message);
+                }
+            } catch (error) {
+                console.error("Error fetching tasks:", error);
+                alert("Gagal terhubung ke database. Pastikan URL Google Apps Script benar dan sudah di-deploy.");
+            }
+        }
+
 
         // Render function for Element SDK
         async function render(config) {
+            // ... (Fungsi render tetap sama)
             const appTitle = document.getElementById('app-title');
             const schoolName = document.getElementById('school-name');
             const addButtonText = document.getElementById('add-button-text');
@@ -261,7 +274,6 @@
             if (addButtonText) addButtonText.textContent = config.add_button_text || defaultConfig.add_button_text;
             if (taskInput) taskInput.placeholder = config.placeholder_text || defaultConfig.placeholder_text;
 
-            // Apply colors
             const primaryColor = config.primary_color || defaultConfig.primary_color;
             const secondaryColor = config.secondary_color || defaultConfig.secondary_color;
             const backgroundColor = config.background_color || defaultConfig.background_color;
@@ -269,18 +281,10 @@
             const accentColor = config.accent_color || defaultConfig.accent_color;
 
             document.body.style.background = `linear-gradient(to bottom right, ${backgroundColor}, ${accentColor}20)`;
-            
             const header = document.querySelector('header');
-            if (header) {
-                header.style.background = `linear-gradient(to right, ${primaryColor}, ${accentColor})`;
-            }
-
+            if (header) header.style.background = `linear-gradient(to right, ${primaryColor}, ${accentColor})`;
             const addButton = document.getElementById('add-button');
-            if (addButton) {
-                addButton.style.background = `linear-gradient(to right, ${secondaryColor}, ${secondaryColor}dd)`;
-            }
-
-            // Update text colors
+            if (addButton) addButton.style.background = `linear-gradient(to right, ${secondaryColor}, ${secondaryColor}dd)`;
             const textElements = document.querySelectorAll('.task-text');
             textElements.forEach(el => {
                 if (!el.classList.contains('completed-task')) {
@@ -291,48 +295,14 @@
 
         // Capabilities mapping
         function mapToCapabilities(config) {
-            return {
+            // ... (Fungsi mapToCapabilities tetap sama)
+             return {
                 recolorables: [
-                    {
-                        get: () => config.primary_color || defaultConfig.primary_color,
-                        set: (value) => {
-                            if (window.elementSdk) {
-                                window.elementSdk.setConfig({ primary_color: value });
-                            }
-                        }
-                    },
-                    {
-                        get: () => config.secondary_color || defaultConfig.secondary_color,
-                        set: (value) => {
-                            if (window.elementSdk) {
-                                window.elementSdk.setConfig({ secondary_color: value });
-                            }
-                        }
-                    },
-                    {
-                        get: () => config.background_color || defaultConfig.background_color,
-                        set: (value) => {
-                            if (window.elementSdk) {
-                                window.elementSdk.setConfig({ background_color: value });
-                            }
-                        }
-                    },
-                    {
-                        get: () => config.text_color || defaultConfig.text_color,
-                        set: (value) => {
-                            if (window.elementSdk) {
-                                window.elementSdk.setConfig({ text_color: value });
-                            }
-                        }
-                    },
-                    {
-                        get: () => config.accent_color || defaultConfig.accent_color,
-                        set: (value) => {
-                            if (window.elementSdk) {
-                                window.elementSdk.setConfig({ accent_color: value });
-                            }
-                        }
-                    }
+                    { get: () => config.primary_color || defaultConfig.primary_color, set: (value) => window.elementSdk?.setConfig({ primary_color: value }) },
+                    { get: () => config.secondary_color || defaultConfig.secondary_color, set: (value) => window.elementSdk?.setConfig({ secondary_color: value }) },
+                    { get: () => config.background_color || defaultConfig.background_color, set: (value) => window.elementSdk?.setConfig({ background_color: value }) },
+                    { get: () => config.text_color || defaultConfig.text_color, set: (value) => window.elementSdk?.setConfig({ text_color: value }) },
+                    { get: () => config.accent_color || defaultConfig.accent_color, set: (value) => window.elementSdk?.setConfig({ accent_color: value }) }
                 ],
                 borderables: [],
                 fontEditable: undefined,
@@ -342,6 +312,7 @@
 
         // Edit panel values mapping
         function mapToEditPanelValues(config) {
+            // ... (Fungsi mapToEditPanelValues tetap sama)
             return new Map([
                 ["app_title", config.app_title || defaultConfig.app_title],
                 ["school_name", config.school_name || defaultConfig.school_name],
@@ -350,17 +321,18 @@
             ]);
         }
 
+        // --- CRUD Functions (Diperbarui untuk Google Sheets) ---
+
         // Add new task
         async function addTask(text, startDate, endDate, hasEndDate) {
             if (tasks.length >= 999) {
-                alert("Maksimum 999 tugas telah tercapai. Silakan hapus beberapa tugas terlebih dahulu.");
+                alert("Maksimum 999 tugas telah tercapai.");
                 return;
             }
-
             setLoading(true);
             
             const newTask = {
-                id: Date.now().toString(),
+                id: Date.now().toString(), // ID unik dibuat di client
                 text: text.trim(),
                 completed: false,
                 createdAt: new Date().toISOString(),
@@ -369,11 +341,27 @@
                 hasEndDate: hasEndDate
             };
 
-            if (window.dataSdk) {
-                const result = await window.dataSdk.create(newTask);
-                if (!result.isOk) {
-                    alert("Gagal menambahkan tugas. Silakan coba lagi.");
-                }
+            try {
+                const response = await fetch(GOOGLE_APP_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // Mode 'no-cors' untuk Apps Script
+                    cache: 'no-cache',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ action: 'addTask', task: newTask })
+                });
+
+                // Dengan mode no-cors, kita tidak bisa membaca response.
+                // Jadi kita langsung update UI secara "optimistic".
+                tasks.push(newTask);
+                renderTasks();
+                updateTaskCounter();
+                localStorage.setItem(CACHE_KEY, JSON.stringify(tasks));
+
+            } catch (error) {
+                console.error("Gagal menambah tugas:", error);
+                alert("Gagal menambah tugas. Silakan coba lagi.");
             }
             
             setLoading(false);
@@ -381,24 +369,58 @@
 
         // Toggle task completion
         async function toggleTask(taskId) {
-            const task = tasks.find(t => t.__backendId === taskId);
-            if (!task || !window.dataSdk) return;
-
-            const updatedTask = { ...task, completed: !task.completed };
-            const result = await window.dataSdk.update(updatedTask);
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
             
-            if (!result.isOk) {
+            const newCompletedState = !task.completed;
+
+            try {
+                 await fetch(GOOGLE_APP_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ action: 'updateTask', id: taskId, completed: newCompletedState })
+                });
+                
+                // Update optimistik
+                task.completed = newCompletedState;
+                renderTasks();
+                updateTaskCounter();
+                localStorage.setItem(CACHE_KEY, JSON.stringify(tasks));
+                
+            } catch (error) {
+                console.error("Gagal update tugas:", error);
                 alert("Gagal memperbarui tugas. Silakan coba lagi.");
             }
         }
 
         // Delete task
         async function deleteTask(taskId) {
-            const task = tasks.find(t => t.__backendId === taskId);
-            if (!task || !window.dataSdk) return;
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
 
-            const result = await window.dataSdk.delete(task);
-            if (!result.isOk) {
+            try {
+                await fetch(GOOGLE_APP_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ action: 'deleteTask', id: taskId })
+                });
+
+                // Update optimistik
+                tasks = tasks.filter(t => t.id !== taskId);
+                renderTasks();
+                updateTaskCounter();
+                localStorage.setItem(CACHE_KEY, JSON.stringify(tasks));
+
+            } catch (error) {
+                console.error("Gagal menghapus tugas:", error);
                 alert("Gagal menghapus tugas. Silakan coba lagi.");
             }
         }
@@ -420,32 +442,23 @@
                 const aEnded = isTaskEnded(a);
                 const bEnded = isTaskEnded(b);
                 
-                // Priority levels:
-                // 1. Tugas masih berjalan, belum dicentang (priority 1)
-                // 2. Tugas telah berakhir, belum dicentang (priority 2)
-                // 3. Tugas masih berjalan, sudah dicentang (priority 3)
-                // 4. Tugas telah berakhir, sudah dicentang (priority 4)
-                
                 function getPriority(task) {
                     const ended = isTaskEnded(task);
                     const completed = task.completed;
-                    
-                    if (!ended && !completed) return 1; // Masih berjalan, belum dicentang
-                    if (ended && !completed) return 2;  // Telah berakhir, belum dicentang
-                    if (!ended && completed) return 3;  // Masih berjalan, sudah dicentang
-                    if (ended && completed) return 4;   // Telah berakhir, sudah dicentang
-                    
-                    return 5; // fallback
+                    if (!ended && !completed) return 1;
+                    if (ended && !completed) return 2;
+                    if (!ended && completed) return 3;
+                    if (ended && completed) return 4;
+                    return 5;
                 }
                 
                 const aPriority = getPriority(a);
                 const bPriority = getPriority(b);
                 
-                // Jika priority sama, urutkan berdasarkan tanggal mulai (terbaru dulu)
                 if (aPriority === bPriority) {
                     const aStartDate = new Date(a.startDate);
                     const bStartDate = new Date(b.startDate);
-                    return bStartDate - aStartDate; // Tanggal terbaru di atas
+                    return bStartDate - aStartDate;
                 }
                 
                 return aPriority - bPriority;
@@ -457,7 +470,7 @@
             const container = document.getElementById('tasks-container');
             const emptyState = document.getElementById('empty-state');
             
-            if (tasks.length === 0) {
+            if (!tasks || tasks.length === 0) {
                 container.innerHTML = '';
                 emptyState.classList.remove('hidden');
                 return;
@@ -465,7 +478,6 @@
             
             emptyState.classList.add('hidden');
             
-            // Sort tasks by priority before rendering
             const sortedTasks = sortTasksByPriority([...tasks]);
             
             container.innerHTML = sortedTasks.map(task => {
@@ -473,20 +485,19 @@
                 const endDate = task.hasEndDate && task.endDate ? new Date(task.endDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
                 const dateDisplay = task.hasEndDate ? `${startDate} - ${endDate}` : `${startDate} - Tanpa akhir`;
                 
-                // Add status indicator
                 const isEnded = isTaskEnded(task);
                 const statusIcon = isEnded ? '⏰' : '🔄';
                 const statusText = isEnded ? 'Berakhir' : 'Berjalan';
                 const statusColor = isEnded ? 'text-red-500' : 'text-green-500';
                 
                 return `
-                <div class="task-item bg-gray-50 rounded-lg p-4 border border-gray-200 fade-in">
-                    <div class="flex items-start gap-3">
+                <div class.task-item bg-gray-50 rounded-lg p-4 border border-gray-200 fade-in">
+                    <div class.flex items-start gap-3">
                         <input 
                             type="checkbox" 
                             class="checkbox-custom ${task.completed ? 'checkmark-animation' : ''} mt-1" 
                             ${task.completed ? 'checked' : ''}
-                            onchange="toggleTask('${task.__backendId}')"
+                            onchange="toggleTask('${task.id}')"
                         >
                         <div class="flex-1">
                             <span class="task-text block ${task.completed ? 'completed-task' : ''} text-gray-800 font-medium">
@@ -504,7 +515,7 @@
                             </div>
                         </div>
                         <button 
-                            onclick="deleteTask('${task.__backendId}')" 
+                            onclick="deleteTask('${task.id}')" 
                             class="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-all"
                             title="Hapus tugas"
                         >
@@ -573,7 +584,6 @@
             document.getElementById('page-1').classList.add('hidden');
             document.getElementById('page-2').classList.remove('hidden');
             
-            // Focus on task input
             setTimeout(() => {
                 document.getElementById('task-input').focus();
             }, 100);
@@ -582,8 +592,6 @@
         function showTaskListPage() {
             document.getElementById('page-2').classList.add('hidden');
             document.getElementById('page-1').classList.remove('hidden');
-            
-            // Reset form when going back
             resetForm();
         }
 
@@ -593,7 +601,7 @@
             
             const noEndDateCheckbox = document.getElementById('no-end-date');
             noEndDateCheckbox.checked = false;
-            toggleEndDate(); // Reset end date field state
+            toggleEndDate();
         }
 
         // Event listeners
@@ -612,7 +620,6 @@
             const hasEndDate = !noEndDateCheckbox.checked;
             
             if (text && startDate) {
-                // Validate end date if it's enabled
                 if (hasEndDate && endDate && new Date(endDate) < new Date(startDate)) {
                     alert('Tanggal berakhir tidak boleh lebih awal dari tanggal mulai!');
                     return;
@@ -620,11 +627,9 @@
                 
                 await addTask(text, startDate, endDate, hasEndDate);
                 
-                // Reset form and go back to task list
                 resetForm();
                 showTaskListPage();
                 
-                // Add bounce animation to add task button on page 1
                 setTimeout(() => {
                     const addTaskButton = document.querySelector('#page-1 button');
                     addTaskButton.classList.add('bounce');
