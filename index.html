@@ -126,14 +126,13 @@
     // --- SERVICES ---
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxAyGHSJWcRaYb0ZmGD9ub-wv2KKeoPcyr4RnOKdiQjjSbr-xYJPnyC1OvfD8a8ybN5_Q/exec';
 
-    const apiRequest = async (action, payload) => {
+    const postToSheet = async (payload) => {
       const options = {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action, ...payload }),
+        body: JSON.stringify(payload),
         redirect: 'follow',
       };
-
       try {
         const response = await fetch(SCRIPT_URL, options);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -141,7 +140,7 @@
         if (result.status === 'error') throw new Error(result.message || 'An unknown API error occurred');
         return result.data;
       } catch (error) {
-        console.error(`API Error on action '${action}':`, error);
+        console.error(`API Error for action '${payload.action}':`, error);
         throw error;
       }
     };
@@ -159,9 +158,10 @@
       }
     };
 
-    const createTask = (taskData) => apiRequest('create', { data: taskData });
-    const updateTask = (taskData) => apiRequest('update', { data: taskData });
-    const deleteTask = (id) => apiRequest('delete', { id });
+    const createTask = (taskData) => postToSheet({ action: 'addTask', task: taskData });
+    const updateTaskCompletion = (id, completed) => postToSheet({ action: 'updateTask', id, completed });
+    const deleteTask = (id) => postToSheet({ action: 'deleteTask', id });
+
 
     // --- UTILS ---
     const isTaskEnded = (task) => {
@@ -475,7 +475,13 @@
 
       const handleAddTask = async (newTaskData) => {
         try {
-          await createTask(newTaskData);
+          const completeTask = {
+            ...newTaskData,
+            id: Date.now().toString(),
+            completed: false,
+            createdAt: new Date().toISOString(),
+          };
+          await createTask(completeTask);
           setView('list');
           await fetchTasks();
         } catch (err) {
@@ -493,7 +499,7 @@
         setTasks(tasks.map(t => (t.id === id ? updatedTask : t)));
 
         try {
-          await updateTask(updatedTask);
+          await updateTaskCompletion(id, completed);
         } catch (err) {
           setError('Gagal memperbarui tugas.');
           setTasks(originalTasks);
@@ -506,7 +512,8 @@
 
         try {
           await deleteTask(id);
-        } catch (err) {
+        } catch (err)
+          {
           setError('Gagal menghapus tugas.');
           setTasks(originalTasks);
         }
