@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="id" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List SD IT Nurul Kautsar</title>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+        body {
+            box-sizing: border-box;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+        
+        @keyframes checkmark {
+            0% {
+                transform: scale(0);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .bounce {
+            animation: bounce 0.6s ease-in-out;
+        }
+        
+        .checkmark-animation {
+            animation: checkmark 0.3s ease-out;
+        }
+        
+        .completed-task {
+            text-decoration: line-through;
+            opacity: 0.6;
+            transition: all 0.3s ease;
+        }
+        
+        .task-item {
+            transition: all 0.3s ease;
+        }
+        
+        .task-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .checkbox-custom {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #10b981;
+            border-radius: 4px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .checkbox-custom:checked {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        
+        .checkbox-custom:checked::after {
+            content: '✓';
+            position: absolute;
+            top: -2px;
+            left: 2px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .loading-spinner {
+            border: 2px solid #f3f4f6;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="h-full bg-gradient-to-br from-blue-50 to-indigo-100 font-sans">
+  <main class="min-h-full p-4"><!-- Page 1: Task List View -->
+   <div id="page-1" class="max-w-md md:max-w-3xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden slide-in"><!-- Header with Add Button -->
+    <header class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
+     <h1 id="app-title" class="text-2xl font-bold text-center mb-2">📚 Daftar Tugas</h1>
+     <p id="school-name" class="text-center text-blue-100 text-sm mb-4">SD IT Nurul Kautsar</p><button onclick="showAddTaskPage()" class="w-full px-4 py-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-lg transition-all transform hover:scale-105 font-medium flex items-center justify-center gap-2"> <span>➕</span> <span id="add-task-button-text">Tambah Tugas</span> </button>
+    </header><!-- Tasks List -->
+    <div class="p-6">
+     <div id="tasks-container" class="space-y-3"><!-- Tasks will be rendered here -->
+     </div><!-- Empty State -->
+     <div id="empty-state" class="text-center py-8 text-gray-500">
+      <div class="text-4xl mb-3">
+       📝
+      </div>
+      <p class="text-lg font-medium mb-2">Belum ada tugas</p>
+      <p class="text-sm">Klik "Tambah Tugas" untuk memulai!</p>
+     </div><!-- Task Counter -->
+     <div id="task-counter" class="mt-6 text-center text-sm text-gray-600 hidden"><span id="completed-count">0</span> dari <span id="total-count">0</span> tugas selesai
+     </div>
+    </div>
+   </div><!-- Page 2: Add Task Form -->
+   <div id="page-2" class="max-w-md md:max-w-3xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden slide-in hidden"><!-- Header with Back Button -->
+    <header class="bg-gradient-to-r from-green-600 to-emerald-600 p-6 text-white">
+     <div class="flex items-center gap-3 mb-2"><button onclick="showTaskListPage()" class="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-all" title="Kembali"> ← </button>
+      <h1 class="text-xl font-bold flex-1 text-center">➕ Tambah Tugas Baru</h1>
+      <div class="w-10"></div><!-- Spacer for centering -->
+     </div>
+    </header><!-- Add Task Form -->
+    <div class="p-6">
+     <form id="task-form" class="space-y-4">
+      <div><label for="task-input" class="block text-sm font-medium text-gray-700 mb-2">Nama Tugas</label> <input type="text" id="task-input" placeholder="Tulis tugas baru..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all" required>
+      </div><!-- Date Fields -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+       <div><label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label> <input type="date" id="start-date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm" required>
+       </div>
+       <div><label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">Tanggal Berakhir</label> <input type="date" id="end-date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all text-sm">
+       </div>
+      </div><!-- No End Date Checkbox -->
+      <div class="flex items-center gap-2"><input type="checkbox" id="no-end-date" class="checkbox-custom" onchange="toggleEndDate()"> <label for="no-end-date" class="text-sm text-gray-600">Tanpa akhir</label>
+      </div>
+      <div class="flex gap-3 pt-4"><button type="button" onclick="showTaskListPage()" class="flex-1 px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-all font-medium"> Batal </button> <button type="submit" id="add-button" class="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 focus:outline-none focus:ring-2 focus:ring-green-500 transition-all transform hover:scale-105 font-medium"> <span id="add-button-text">Simpan</span>
+        <div id="add-loading" class="loading-spinner hidden ml-2 inline-block"></div></button>
+      </div>
+     </form>
+    </div>
+   </div>
+  </main>
+  <script>
+        // Configuration
+        const defaultConfig = {
+            app_title: "📚 Daftar Tugas",
+            school_name: "SD IT Nurul Kautsar",
+            add_button_text: "Tambah",
+            placeholder_text: "Tulis tugas baru...",
+            primary_color: "#3b82f6",
+            secondary_color: "#10b981",
+            background_color: "#f8fafc",
+            text_color: "#1f2937",
+            accent_color: "#6366f1"
+        };
+
+        let tasks = [];
+        let isLoading = false;
+        const CACHE_KEY = 'todoAppTasks'; // Kunci untuk localStorage
+
+        // Data SDK Handler
+        const dataHandler = {
+            onDataChanged(data) {
+                tasks = data || [];
+                renderTasks();
+                updateTaskCounter();
+                 // Simpan data terbaru ke cache
+                try {
+                    localStorage.setItem(CACHE_KEY, JSON.stringify(tasks));
+                } catch (e) {
+                    console.warn("Gagal menyimpan cache ke localStorage:", e);
+                }
+            }
+        };
+
+        // --- Fungsi Cache Baru ---
+        function loadCachedTasks() {
+             try {
+                const cachedTasks = localStorage.getItem(CACHE_KEY);
+                if (cachedTasks) {
+                    tasks = JSON.parse(cachedTasks);
+                    renderTasks();
+                    updateTaskCounter();
+                }
+            } catch (e) {
+                console.warn("Gagal memuat cache dari localStorage:", e);
+                tasks = []; // Mulai dengan daftar kosong jika cache rusak
+            }
+        }
+
+        // Initialize SDK
+        async function initializeApp() {
+            // Muat dari cache dulu untuk loading cepat
+            loadCachedTasks();
+            
+            if (window.dataSdk) {
+                 // Kemudian inisialisasi SDK untuk data terbaru
+                const result = await window.dataSdk.init(dataHandler);
+                if (!result.isOk) {
+                    console.error("Failed to initialize data SDK");
+                }
+            }
+
+            if (window.elementSdk) {
+                await window.elementSdk.init({
+                    defaultConfig,
+                    render,
+                    mapToCapabilities,
+                    mapToEditPanelValues
+                });
+            }
+        }
+
+        // Render function for Element SDK
+        async function render(config) {
+            const appTitle = document.getElementById('app-title');
+            const schoolName = document.getElementById('school-name');
+            const addButtonText = document.getElementById('add-button-text');
+            const taskInput = document.getElementById('task-input');
+
+            if (appTitle) appTitle.textContent = config.app_title || defaultConfig.app_title;
+            if (schoolName) schoolName.textContent = config.school_name || defaultConfig.school_name;
+            if (addButtonText) addButtonText.textContent = config.add_button_text || defaultConfig.add_button_text;
+            if (taskInput) taskInput.placeholder = config.placeholder_text || defaultConfig.placeholder_text;
+
+            // Apply colors
+            const primaryColor = config.primary_color || defaultConfig.primary_color;
+            const secondaryColor = config.secondary_color || defaultConfig.secondary_color;
+            const backgroundColor = config.background_color || defaultConfig.background_color;
+            const textColor = config.text_color || defaultConfig.text_color;
+            const accentColor = config.accent_color || defaultConfig.accent_color;
+
+            document.body.style.background = `linear-gradient(to bottom right, ${backgroundColor}, ${accentColor}20)`;
+            
+            const header = document.querySelector('header');
+            if (header) {
+                header.style.background = `linear-gradient(to right, ${primaryColor}, ${accentColor})`;
+            }
+
+            const addButton = document.getElementById('add-button');
+            if (addButton) {
+                addButton.style.background = `linear-gradient(to right, ${secondaryColor}, ${secondaryColor}dd)`;
+            }
+
+            // Update text colors
+            const textElements = document.querySelectorAll('.task-text');
+            textElements.forEach(el => {
+                if (!el.classList.contains('completed-task')) {
+                    el.style.color = textColor;
+                }
+            });
+        }
+
+        // Capabilities mapping
+        function mapToCapabilities(config) {
+            return {
+                recolorables: [
+                    {
+                        get: () => config.primary_color || defaultConfig.primary_color,
+                        set: (value) => {
+                            if (window.elementSdk) {
+                                window.elementSdk.setConfig({ primary_color: value });
+                            }
+                        }
+                    },
+                    {
+                        get: () => config.secondary_color || defaultConfig.secondary_color,
+                        set: (value) => {
+                            if (window.elementSdk) {
+                                window.elementSdk.setConfig({ secondary_color: value });
+                            }
+                        }
+                    },
+                    {
+                        get: () => config.background_color || defaultConfig.background_color,
+                        set: (value) => {
+                            if (window.elementSdk) {
+                                window.elementSdk.setConfig({ background_color: value });
+                            }
+                        }
+                    },
+                    {
+                        get: () => config.text_color || defaultConfig.text_color,
+                        set: (value) => {
+                            if (window.elementSdk) {
+                                window.elementSdk.setConfig({ text_color: value });
+                            }
+                        }
+                    },
+                    {
+                        get: () => config.accent_color || defaultConfig.accent_color,
+                        set: (value) => {
+                            if (window.elementSdk) {
+                                window.elementSdk.setConfig({ accent_color: value });
+                            }
+                        }
+                    }
+                ],
+                borderables: [],
+                fontEditable: undefined,
+                fontSizeable: undefined
+            };
+        }
+
+        // Edit panel values mapping
+        function mapToEditPanelValues(config) {
+            return new Map([
+                ["app_title", config.app_title || defaultConfig.app_title],
+                ["school_name", config.school_name || defaultConfig.school_name],
+                ["add_button_text", config.add_button_text || defaultConfig.add_button_text],
+                ["placeholder_text", config.placeholder_text || defaultConfig.placeholder_text]
+            ]);
+        }
+
+        // Add new task
+        async function addTask(text, startDate, endDate, hasEndDate) {
+            if (tasks.length >= 999) {
+                alert("Maksimum 999 tugas telah tercapai. Silakan hapus beberapa tugas terlebih dahulu.");
+                return;
+            }
+
+            setLoading(true);
+            
+            const newTask = {
+                id: Date.now().toString(),
+                text: text.trim(),
+                completed: false,
+                createdAt: new Date().toISOString(),
+                startDate: startDate,
+                endDate: hasEndDate ? endDate : null,
+                hasEndDate: hasEndDate
+            };
+
+            if (window.dataSdk) {
+                const result = await window.dataSdk.create(newTask);
+                if (!result.isOk) {
+                    alert("Gagal menambahkan tugas. Silakan coba lagi.");
+                }
+            }
+            
+            setLoading(false);
+        }
+
+        // Toggle task completion
+        async function toggleTask(taskId) {
+            const task = tasks.find(t => t.__backendId === taskId);
+            if (!task || !window.dataSdk) return;
+
+            const updatedTask = { ...task, completed: !task.completed };
+            const result = await window.dataSdk.update(updatedTask);
+            
+            if (!result.isOk) {
+                alert("Gagal memperbarui tugas. Silakan coba lagi.");
+            }
+        }
+
+        // Delete task
+        async function deleteTask(taskId) {
+            const task = tasks.find(t => t.__backendId === taskId);
+            if (!task || !window.dataSdk) return;
+
+            const result = await window.dataSdk.delete(task);
+            if (!result.isOk) {
+                alert("Gagal menghapus tugas. Silakan coba lagi.");
+            }
+        }
+
+        // Check if task has ended
+        function isTaskEnded(task) {
+            if (!task.hasEndDate || !task.endDate) {
+                return false; // Tugas tanpa akhir tidak pernah berakhir
+            }
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Set to start of today
+            const endDate = new Date(task.endDate);
+            return endDate < today;
+        }
+
+        // Sort tasks by priority
+        function sortTasksByPriority(tasks) {
+            return tasks.sort((a, b) => {
+                const aEnded = isTaskEnded(a);
+                const bEnded = isTaskEnded(b);
+                
+                // Priority levels:
+                // 1. Tugas masih berjalan, belum dicentang (priority 1)
+                // 2. Tugas telah berakhir, belum dicentang (priority 2)
+                // 3. Tugas masih berjalan, sudah dicentang (priority 3)
+                // 4. Tugas telah berakhir, sudah dicentang (priority 4)
+                
+                function getPriority(task) {
+                    const ended = isTaskEnded(task);
+                    const completed = task.completed;
+                    
+                    if (!ended && !completed) return 1; // Masih berjalan, belum dicentang
+                    if (ended && !completed) return 2;  // Telah berakhir, belum dicentang
+                    if (!ended && completed) return 3;  // Masih berjalan, sudah dicentang
+                    if (ended && completed) return 4;   // Telah berakhir, sudah dicentang
+                    
+                    return 5; // fallback
+                }
+                
+                const aPriority = getPriority(a);
+                const bPriority = getPriority(b);
+                
+                // Jika priority sama, urutkan berdasarkan tanggal mulai (terbaru dulu)
+                if (aPriority === bPriority) {
+                    const aStartDate = new Date(a.startDate);
+                    const bStartDate = new Date(b.startDate);
+                    return bStartDate - aStartDate; // Tanggal terbaru di atas
+                }
+                
+                return aPriority - bPriority;
+            });
+        }
+
+        // Render tasks
+        function renderTasks() {
+            const container = document.getElementById('tasks-container');
+            const emptyState = document.getElementById('empty-state');
+            
+            if (tasks.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            
+            // Sort tasks by priority before rendering
+            const sortedTasks = sortTasksByPriority([...tasks]);
+            
+            container.innerHTML = sortedTasks.map(task => {
+                const startDate = task.startDate ? new Date(task.startDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                const endDate = task.hasEndDate && task.endDate ? new Date(task.endDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                const dateDisplay = task.hasEndDate ? `${startDate} - ${endDate}` : `${startDate} - Tanpa akhir`;
+                
+                // Add status indicator
+                const isEnded = isTaskEnded(task);
+                const statusIcon = isEnded ? '⏰' : '🔄';
+                const statusText = isEnded ? 'Berakhir' : 'Berjalan';
+                const statusColor = isEnded ? 'text-red-500' : 'text-green-500';
+                
+                return `
+                <div class="task-item bg-gray-50 rounded-lg p-4 border border-gray-200 fade-in">
+                    <div class="flex items-start gap-3">
+                        <input 
+                            type="checkbox" 
+                            class="checkbox-custom ${task.completed ? 'checkmark-animation' : ''} mt-1" 
+                            ${task.completed ? 'checked' : ''}
+                            onchange="toggleTask('${task.__backendId}')"
+                        >
+                        <div class="flex-1">
+                            <span class="task-text block ${task.completed ? 'completed-task' : ''} text-gray-800 font-medium">
+                                ${task.text}
+                            </span>
+                            <div class="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                                <div class="flex items-center gap-1">
+                                    <span>📅</span>
+                                    <span>${dateDisplay}</span>
+                                </div>
+                                <div class="flex items-center gap-1 ${statusColor}">
+                                    <span>${statusIcon}</span>
+                                    <span>${statusText}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button 
+                            onclick="deleteTask('${task.__backendId}')" 
+                            class="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-all"
+                            title="Hapus tugas"
+                        >
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // Update task counter
+        function updateTaskCounter() {
+            const counter = document.getElementById('task-counter');
+            const completedCount = document.getElementById('completed-count');
+            const totalCount = document.getElementById('total-count');
+            
+            if (tasks.length > 0) {
+                const completed = tasks.filter(task => task.completed).length;
+                completedCount.textContent = completed;
+                totalCount.textContent = tasks.length;
+                counter.classList.remove('hidden');
+            } else {
+                counter.classList.add('hidden');
+            }
+        }
+
+        // Toggle end date field
+        function toggleEndDate() {
+            const noEndDateCheckbox = document.getElementById('no-end-date');
+            const endDateInput = document.getElementById('end-date');
+            
+            if (noEndDateCheckbox.checked) {
+                endDateInput.disabled = true;
+                endDateInput.classList.add('opacity-50', 'cursor-not-allowed');
+                endDateInput.value = '';
+            } else {
+                endDateInput.disabled = false;
+                endDateInput.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        // Set loading state
+        function setLoading(loading) {
+            isLoading = loading;
+            const button = document.getElementById('add-button');
+            const buttonText = document.getElementById('add-button-text');
+            const loadingSpinner = document.getElementById('add-loading');
+            
+            if (loading) {
+                button.disabled = true;
+                button.classList.add('opacity-75');
+                buttonText.textContent = 'Menambah...';
+                loadingSpinner.classList.remove('hidden');
+            } else {
+                button.disabled = false;
+                button.classList.remove('opacity-75');
+                const config = window.elementSdk?.config || defaultConfig;
+                buttonText.textContent = config.add_button_text || defaultConfig.add_button_text;
+                loadingSpinner.classList.add('hidden');
+            }
+        }
+
+        // Page navigation functions
+        function showAddTaskPage() {
+            document.getElementById('page-1').classList.add('hidden');
+            document.getElementById('page-2').classList.remove('hidden');
+            
+            // Focus on task input
+            setTimeout(() => {
+                document.getElementById('task-input').focus();
+            }, 100);
+        }
+
+        function showTaskListPage() {
+            document.getElementById('page-2').classList.add('hidden');
+            document.getElementById('page-1').classList.remove('hidden');
+            
+            // Reset form when going back
+            resetForm();
+        }
+
+        function resetForm() {
+            const form = document.getElementById('task-form');
+            form.reset();
+            
+            const noEndDateCheckbox = document.getElementById('no-end-date');
+            noEndDateCheckbox.checked = false;
+            toggleEndDate(); // Reset end date field state
+        }
+
+        // Event listeners
+        document.getElementById('task-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (isLoading) return;
+            
+            const input = document.getElementById('task-input');
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+            const noEndDateCheckbox = document.getElementById('no-end-date');
+            
+            const text = input.value.trim();
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            const hasEndDate = !noEndDateCheckbox.checked;
+            
+            if (text && startDate) {
+                // Validate end date if it's enabled
+                if (hasEndDate && endDate && new Date(endDate) < new Date(startDate)) {
+                    alert('Tanggal berakhir tidak boleh lebih awal dari tanggal mulai!');
+                    return;
+                }
+                
+                await addTask(text, startDate, endDate, hasEndDate);
+                
+                // Reset form and go back to task list
+                resetForm();
+                showTaskListPage();
+                
+                // Add bounce animation to add task button on page 1
+                setTimeout(() => {
+                    const addTaskButton = document.querySelector('#page-1 button');
+                    addTaskButton.classList.add('bounce');
+                    setTimeout(() => addTaskButton.classList.remove('bounce'), 600);
+                }, 100);
+            }
+        });
+
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeApp();
+        });
+    </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'992eabdc867bf875',t:'MTc2MTE5NTYzMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
+
