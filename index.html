@@ -569,8 +569,9 @@
 
         async function handleDeleteConfirm() {
             if (taskToDeleteId) {
-                await deleteTask(taskToDeleteId);
-                hideDeleteConfirmation();
+                const idToDelete = taskToDeleteId;
+                hideDeleteConfirmation(); // Close modal immediately for better UX
+                await deleteTask(idToDelete); // Perform deletion in the background
             }
         }
 
